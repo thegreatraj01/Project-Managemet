@@ -1,0 +1,7 @@
+import express from "express";
+import { healthCheck } from "../controllers/helthcheck.controller.js";
+const router = express.Router();
+
+router.route("/").get(healthCheck);
+
+export default router;
