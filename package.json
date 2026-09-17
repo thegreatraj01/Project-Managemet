@@ -1,0 +1,15 @@
+{
+  "name": "project-management",
+  "version": "1.0.0",
+  "description": "project management app for beginners",
+  "license": "ISC",
+  "author": "Rajballav kumar",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node index.js"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.7"
+  }
+}
