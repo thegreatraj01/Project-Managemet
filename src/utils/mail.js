@@ -36,3 +36,5 @@ const forgotPasswordMailgenContent = (username, passwordResetUrl) => {
       },
    };
 };
+
+export { emailVerificationMailgenContent, forgotPasswordMailgenContent };
