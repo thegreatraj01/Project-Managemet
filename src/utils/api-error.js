@@ -12,8 +12,8 @@ class ApiError extends Error {
     * @param {string} [stack=""] - Optional custom stack trace to preserve.
     */
    constructor(
-      message = "Something went wrong",
       statusCode,
+      message = "Something went wrong",
       errors = [],
       stack = "",
    ) {
