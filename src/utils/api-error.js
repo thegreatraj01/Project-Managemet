@@ -1,22 +1,29 @@
-// Custom error class for consistent API error responses.
+/**
+ * Custom API error class used to standardize backend error responses.
+ * Extends the native Error class with HTTP status metadata.
+ */
 class ApiError extends Error {
+   /**
+    * Creates an API error instance.
+    *
+    * @param {string} [message="Something went wrong"] - Error message shown to the client.
+    * @param {number} statusCode - HTTP status code associated with the error.
+    * @param {Array} [errors=[]] - Additional validation or error details.
+    * @param {string} [stack=""] - Optional custom stack trace to preserve.
+    */
    constructor(
-      // Error details supplied by the caller.
       message = "Something went wrong",
       statusCode,
       errors = [],
       stack = "",
    ) {
-      // Initialize the built-in Error with the provided message.
       super(message);
 
-      // Store the API error response properties.
       this.statusCode = statusCode;
       this.errors = errors;
       this.data = null;
       this.success = false;
 
-      // Preserve a custom stack or generate one for this error instance.
       if (stack) {
          this.stack = stack;
       } else {
@@ -24,3 +31,5 @@ class ApiError extends Error {
       }
    }
 }
+
+export { ApiError };
