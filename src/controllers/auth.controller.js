@@ -36,7 +36,7 @@ const genrateAccessAndRefreshToken = async (userId) => {
  * @throws {ApiError} If the user already exists or registration fails.
  */
 const rigisterUser = asyncHandler(async (req, res) => {
-   const { username, email, password } = req.body;
+   const { username, email, password, fullname } = req.body;
 
    const existedUser = await User.findOne({
       $or: [{ username }, { email }],
@@ -46,12 +46,16 @@ const rigisterUser = asyncHandler(async (req, res) => {
       throw new ApiError(409, "User with this email or username already exist");
    }
 
+   // User.create Check for validation
    const user = await User.create({
       email,
       password,
       username,
+      fullname,
       isEmailVerified: false,
    });
+
+   const { AccessToken, RefreshToken } = genrateAccessAndRefreshToken(user._id);
 
    const { unhashToken, hashToken, expiry } = user.genrateTemporaryToken();
 
@@ -64,7 +68,7 @@ const rigisterUser = asyncHandler(async (req, res) => {
    await sendVerificationEmail(user.email, user.username, verificationUrl);
 
    const registeredUser = await User.findById(user._id).select(
-      "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry",
+      "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry",
    );
 
    if (!registeredUser) {

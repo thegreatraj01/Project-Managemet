@@ -79,11 +79,10 @@ const userSchema = new Schema(
    },
 );
 // pre-save hook to hash the password before saving the user document
-userSchema.pre("save", async function (next) {
-   if (this.isModified("password")) {
-      this.password = await bcrypt.hash(this.password, 10);
-   }
-   return next();
+userSchema.pre("save", async function () {
+   if (!this.isModified("password")) return;
+
+   this.password = await bcrypt.hash(this.password, 10);
 });
 
 // method to compare the provided password with the hashed password in the database
