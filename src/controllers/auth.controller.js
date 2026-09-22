@@ -35,7 +35,7 @@ const genrateAccessAndRefreshToken = async (userId) => {
  * @returns {Promise<void>} Resolves after sending the user registration response.
  * @throws {ApiError} If the user already exists or registration fails.
  */
-const rigisterUser = asyncHandler(async (req, res) => {
+const registerUser = asyncHandler(async (req, res) => {
    const { username, email, password, fullname } = req.body;
 
    const existedUser = await User.findOne({
@@ -85,4 +85,4 @@ const rigisterUser = asyncHandler(async (req, res) => {
    );
 });
 
-export { rigisterUser, genrateAccessAndRefreshToken };
+export { registerUser, genrateAccessAndRefreshToken };

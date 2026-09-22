@@ -24,4 +24,14 @@ import authRouter from "./routes/auth.routes.js";
 app.use("/api/v1/healthcheck", healthCheckRoute);
 app.use("/api/v1/auth", authRouter);
 
+app.use((error, req, res, next) => {
+   console.error(error);
+
+   res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || "Internal server error",
+      errors: error.errors || [],
+   });
+});
+
 export default app;
