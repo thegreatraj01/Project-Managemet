@@ -1,11 +1,15 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 const app = express();
 
 //Basic configurations
 app.use(express.json({ limit: "16kb" })); // except json data
 app.use(express.urlencoded({ extended: true, limit: "16kb" })); //
 app.use(express.static("public")); // serve static files from the "public" directory
+
+// cookie middleware
+app.use(cookieParser());
 
 // cors configuration
 app.use(
@@ -24,6 +28,7 @@ import authRouter from "./routes/auth.routes.js";
 app.use("/api/v1/healthcheck", healthCheckRoute);
 app.use("/api/v1/auth", authRouter);
 
+// Global error handling middleware
 app.use((error, req, res, next) => {
    console.error(error);
 
