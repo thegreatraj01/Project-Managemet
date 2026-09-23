@@ -173,4 +173,31 @@ const logoutUser = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, null, "User logged out successfully"));
 });
 
-export { registerUser, genrateAccessAndRefreshToken, loginUser, logoutUser };
+/**
+ * Gets the currently authenticated user's details.
+ *
+ * @param {object} req - Express request object containing the authenticated user.
+ * @param {object} res - Express response object used to return the user data.
+ * @returns {Promise<void>} Resolves after sending the current user payload.
+ * @throws {ApiError} If the user does not exist.
+ */
+const getCurrentUser = asyncHandler(async (req, res) => {
+   const userId = req.user._id;
+   const user = await User.findById(userId).select(
+      "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry",
+   );
+   if (!user) {
+      throw new ApiError(404, "User not found");
+   }
+   res.status(200).json(
+      new ApiResponse(200, { user }, "User data retrieved successfully"),
+   );
+});
+
+export {
+   registerUser,
+   genrateAccessAndRefreshToken,
+   loginUser,
+   logoutUser,
+   getCurrentUser,
+};
