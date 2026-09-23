@@ -3,6 +3,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyns-handler.js";
 import { sendVerificationEmail } from "../services/emailService.js";
+import crypto from "crypto";
 
 /**
  * Auth controller for user signup, login, and logout flows.
@@ -70,7 +71,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
    await user.save({ validateBeforeSave: false });
 
-   const verificationUrl = `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unhashToken}`;
+   const verificationUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unhashToken}`;
    await sendVerificationEmail(user.email, user.username, verificationUrl);
 
    const registeredUser = await User.findById(user._id).select(
@@ -194,10 +195,95 @@ const getCurrentUser = asyncHandler(async (req, res) => {
    );
 });
 
+/**
+ * Verifies a user's email address using a verification token and returns a success page.
+ *
+ * @param {object} req - Express request object containing the verification token.
+ * @param {object} res - Express response object used to send the verification result.
+ * @returns {Promise<void>} Resolves after rendering the email verification page.
+ * @throws {ApiError} If the token is invalid, expired, or the user does not exist.
+ */
+const verifyEmail = asyncHandler(async (req, res) => {
+   const { verificationToken } = req.params;
+
+   if (!verificationToken || !verificationToken.trim()) {
+      throw new ApiError(400, "Invalid verification token");
+   }
+
+   const hashedToken = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex");
+
+   const user = await User.findOne({
+      emailVerificationToken: hashedToken,
+   });
+
+   if (!user) {
+      throw new ApiError(400, "Invalid verification token");
+   }
+
+   if (user.emailVerificationTokenExpiry < Date.now()) {
+      throw new ApiError(400, "Verification token has expired");
+   }
+   if (user.isEmailVerified) {
+      throw new ApiError(400, "Email is already verified");
+   }
+   user.isEmailVerified = true;
+   user.emailVerificationToken = undefined;
+   user.emailVerificationTokenExpiry = undefined;
+   await user.save({ validateBeforeSave: false });
+
+   return res.status(200).send(`
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+         <meta charset="UTF-8" />
+         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+         <title>Email Verified</title>
+         <style>
+            body {
+               margin: 0;
+               min-height: 100vh;
+               display: grid;
+               place-items: center;
+               font-family: Arial, sans-serif;
+               background: linear-gradient(135deg, #eef6ff, #f6f7fb);
+               color: #1f2937;
+            }
+            .card {
+               background: #ffffff;
+               border-radius: 16px;
+               padding: 32px 40px;
+               box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+               text-align: center;
+               max-width: 420px;
+            }
+            h2 {
+               margin: 0 0 12px;
+               color: #166534;
+            }
+            p {
+               margin: 0;
+               font-size: 16px;
+            }
+         </style>
+      </head>
+      <body>
+         <div class="card">
+            <h2>Email Verified Successfully</h2>
+            <p>You can now log in to your account.</p>
+         </div>
+      </body>
+      </html>
+   `);
+});
+
 export {
    registerUser,
    genrateAccessAndRefreshToken,
    loginUser,
    logoutUser,
    getCurrentUser,
+   verifyEmail,
 };

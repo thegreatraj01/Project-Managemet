@@ -4,8 +4,9 @@ import {
    loginUser,
    logoutUser,
    getCurrentUser,
+   verifyEmail,
 } from "../controllers/auth.controller.js";
-const router = express.Router();
+
 import { validate } from "../middleware/validator.middleware.js";
 import {
    userLoginValidator,
@@ -14,9 +15,11 @@ import {
 
 import { verifyJwt } from "../middleware/auth.middleware.js";
 
+const router = express.Router();
 // routes
 router.route("/register").post(userRegisterValidator(), validate, registerUser);
 router.route("/login").post(userLoginValidator(), validate, loginUser);
+router.route("/verify-email/:verificationToken").get(verifyEmail);
 
 // secure route
 router.route("/logout").post(verifyJwt, logoutUser);
