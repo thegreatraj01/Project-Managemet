@@ -62,7 +62,7 @@ const registerUser = asyncHandler(async (req, res) => {
       isEmailVerified: false,
    });
 
-   const { AccessToken, RefreshToken } = genrateAccessAndRefreshToken(user._id);
+   await genrateAccessAndRefreshToken(user._id);
 
    const { unhashToken, hashToken, expiry } = user.genrateTemporaryToken();
 
@@ -72,7 +72,7 @@ const registerUser = asyncHandler(async (req, res) => {
    await user.save({ validateBeforeSave: false });
 
    const verificationUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unhashToken}`;
-   await sendVerificationEmail(user.email, user.username, verificationUrl);
+   await sendVerificationEmail(user.email, user.fullname, verificationUrl);
 
    const registeredUser = await User.findById(user._id).select(
       "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry",
@@ -279,6 +279,35 @@ const verifyEmail = asyncHandler(async (req, res) => {
    `);
 });
 
+/**
+ *
+ */
+const resendVerificationEmail = asyncHandler(async (req, res) => {
+   const userId = req.user._id;
+   const user = await User.findById(userId);
+
+   if (!user) {
+      throw new ApiError(404, "User not found");
+   }
+   if (user.isEmailVerified) {
+      throw new ApiError(400, "Email is already verified");
+   }
+
+   const { unhashToken, hashToken, expiry } = user.genrateTemporaryToken();
+
+   user.emailVerificationToken = hashToken;
+   user.emailVerificationTokenExpiry = expiry;
+
+   await user.save({ validateBeforeSave: false });
+
+   const verificationUrl = `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unhashToken}`;
+   await sendVerificationEmail(user.email, user.fullname, verificationUrl);
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, {}, "Verification email resent successfully"));
+});
+
 export {
    registerUser,
    genrateAccessAndRefreshToken,
@@ -286,4 +315,5 @@ export {
    logoutUser,
    getCurrentUser,
    verifyEmail,
+   resendVerificationEmail,
 };

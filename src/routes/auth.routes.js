@@ -5,6 +5,7 @@ import {
    logoutUser,
    getCurrentUser,
    verifyEmail,
+   resendVerificationEmail,
 } from "../controllers/auth.controller.js";
 
 import { validate } from "../middleware/validator.middleware.js";
@@ -24,6 +25,9 @@ router.route("/verify-email/:verificationToken").get(verifyEmail);
 // secure route
 router.route("/logout").post(verifyJwt, logoutUser);
 router.route("/current-user").get(verifyJwt, getCurrentUser);
+router
+   .route("/resend-verification-email")
+   .post(verifyJwt, resendVerificationEmail);
 
 // export router
 export default router;
