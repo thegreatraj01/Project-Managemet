@@ -4,16 +4,18 @@ import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyns-handler.js";
 import jwt from "jsonwebtoken";
 
-const verifyJwt = asyncHandler(async (req, res, next) => {
+export const verifyJwt = asyncHandler(async (req, res, next) => {
    const token =
-      req.cookie.AccessToken ||
-      req.headers("Authorazation")?.replace("Bearer ", "");
+      req.cookies?.accessToken ||
+      req.headers?.authorization?.replace("Bearer ", "") ||
+      req.get("Authorization")?.replace("Bearer ", "");
+
    if (!token) {
       throw new ApiError(401, "Access Denied");
    }
 
    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
 
       const user = await User.findById(decoded?._id).select(
          "-password -refreshToken -forgotPasswordToken -forgotPasswordTokenExpiry -emailVerificationToken -emailVerificationTokenExpiry",

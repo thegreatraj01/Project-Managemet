@@ -5,6 +5,12 @@ import { asyncHandler } from "../utils/asyns-handler.js";
 import { sendVerificationEmail } from "../services/emailService.js";
 
 /**
+ * Auth controller for user signup, login, and logout flows.
+ *
+ * @module controllers/auth
+ */
+
+/**
  * Generates a new access token and refresh token for a user,
  * stores the refresh token in the database, and returns both tokens.
  *
@@ -89,8 +95,15 @@ const registerUser = asyncHandler(async (req, res) => {
    );
 });
 
-// TODO:  write loginUser controller
-
+/**
+ * Logs in an existing user by validating credentials,
+ * issuing tokens, and setting them as HTTP-only cookies.
+ *
+ * @param {object} req - Express request object containing the login payload.
+ * @param {object} res - Express response object used to send the result.
+ * @returns {Promise<void>} Resolves after the login response is sent.
+ * @throws {ApiError} If the user does not exist or the password is invalid.
+ */
 const loginUser = asyncHandler(async (req, res) => {
    const { email, password } = req.body;
 
@@ -110,7 +123,9 @@ const loginUser = asyncHandler(async (req, res) => {
       "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry",
    );
 
-   const { AccessToken, RefreshToken } = genrateAccessAndRefreshToken(user._id);
+   const { AccessToken, RefreshToken } = await genrateAccessAndRefreshToken(
+      user._id,
+   );
 
    const cookieOptions = {
       httpOnly: true,
@@ -134,4 +149,28 @@ const loginUser = asyncHandler(async (req, res) => {
       );
 });
 
-export { registerUser, genrateAccessAndRefreshToken, loginUser };
+/**
+ * Logs out the authenticated user by clearing the refresh and access tokens.
+ *
+ * @param {object} req - Express request object containing the authenticated user.
+ * @param {object} res - Express response object used to complete the logout.
+ * @returns {Promise<void>} Resolves after clearing the auth cookies.
+ */
+const logoutUser = asyncHandler(async (req, res) => {
+   const userId = req.user._id;
+
+   await User.findByIdAndUpdate(userId, { refreshToken: "" }, { new: true });
+
+   const cookieOptions = {
+      httpOnly: true,
+      secure: true,
+      maxAge: 0, // Set maxAge to 0 to expire the cookie immediately
+   };
+
+   res.status(200)
+      .clearCookie("refreshToken", cookieOptions)
+      .clearCookie("accessToken", cookieOptions)
+      .json(new ApiResponse(200, null, "User logged out successfully"));
+});
+
+export { registerUser, genrateAccessAndRefreshToken, loginUser, logoutUser };
