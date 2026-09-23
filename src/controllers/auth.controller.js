@@ -79,12 +79,59 @@ const registerUser = asyncHandler(async (req, res) => {
    }
 
    return res.status(201).json(
-      new ApiResponse(201, "User registered successfully", {
-         user: registeredUser,
-      }),
+      new ApiResponse(
+         201,
+         {
+            user: registeredUser,
+         },
+         "User registered successfully",
+      ),
    );
 });
 
 // TODO:  write loginUser controller
 
-export { registerUser, genrateAccessAndRefreshToken };
+const loginUser = asyncHandler(async (req, res) => {
+   const { email, password } = req.body;
+
+   const user = await User.findOne({ email });
+
+   if (!user) {
+      throw new ApiError(401, "User not exist");
+   }
+
+   const isPasswordValid = user.isPasswordCorrect(password);
+
+   if (!isPasswordValid) {
+      throw new ApiError(401, "Invalid password");
+   }
+
+   const loggedInUser = await User.findById(user._id).select(
+      "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry",
+   );
+
+   const { AccessToken, RefreshToken } = genrateAccessAndRefreshToken(user._id);
+
+   const cookieOptions = {
+      httpOnly: true,
+      secure: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+   };
+
+   res.status(200)
+      .cookie("refreshToken", RefreshToken, cookieOptions)
+      .cookie("accessToken", AccessToken, cookieOptions)
+      .json(
+         new ApiResponse(
+            200,
+            {
+               user: loggedInUser,
+               AccessToken,
+               RefreshToken,
+            },
+            "User logged in successfully",
+         ),
+      );
+});
+
+export { registerUser, genrateAccessAndRefreshToken, loginUser };
