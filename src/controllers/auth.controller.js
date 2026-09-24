@@ -284,7 +284,12 @@ const verifyEmail = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Resends the email verification email to the user
  *
+ * @param {object} req - Express request object containing the authenticated user.
+ * @param {object} res - Express response object used to send the result.
+ * @returns {Promise<void>} Resolves after sending the verification email.
+ * @throws {ApiError} If the user does not exist or the email is already verified.  
  */
 const resendVerificationEmail = asyncHandler(async (req, res) => {
    const userId = req.user._id;
@@ -311,6 +316,15 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
       .status(200)
       .json(new ApiResponse(200, {}, "Verification email resent successfully"));
 });
+
+/**
+ * Refreshes the access token using the refresh token
+ *
+ * @param {object} req - Express request object containing the refresh token.
+ * @param {object} res - Express response object used to send the new tokens.
+ * @returns {Promise<void>} Resolves after sending the new access and refresh tokens.
+ * @throws {ApiError} If the refresh token is missing, invalid, or expired.
+ */
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
