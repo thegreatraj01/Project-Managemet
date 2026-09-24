@@ -36,7 +36,10 @@ const genrateAccessAndRefreshToken = async (userId) => {
       await user.save({ validateBeforeSave: false });
       return { accessToken, refreshToken };
    } catch (error) {
-      throw new ApiError("Something Went Wrong", 500);
+      if (error instanceof ApiError) {
+         throw error;
+      }
+      throw new ApiError(500, "Something went wrong while generating tokens");
    }
 };
 
@@ -87,8 +90,8 @@ const registerUser = asyncHandler(async (req, res) => {
 
    if (!registeredUser) {
       throw new ApiError(
-         "Something went wrong while registering the user",
          500,
+         "Something went wrong while registering the user",
       );
    }
 
@@ -118,7 +121,7 @@ const loginUser = asyncHandler(async (req, res) => {
    const user = await User.findOne({ email });
 
    if (!user) {
-      throw new ApiError(401, "User not exist");
+      throw new ApiError(404, "User not found");
    }
 
    const isPasswordValid = await user.isPasswordCorrect(password);
@@ -236,7 +239,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Verification token has expired");
    }
    if (user.isEmailVerified) {
-      throw new ApiError(400, "Email is already verified");
+      throw new ApiError(409, "Email is already verified");
    }
    user.isEmailVerified = true;
    user.emailVerificationToken = undefined;
@@ -304,7 +307,7 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
       throw new ApiError(404, "User not found");
    }
    if (user.isEmailVerified) {
-      throw new ApiError(400, "Email is already verified");
+      throw new ApiError(409, "Email is already verified");
    }
 
    const { unhashToken, hashToken, expiry } = user.genrateTemporaryToken();
@@ -456,7 +459,7 @@ const resetForgottenPassword = asyncHandler(async (req, res) => {
    const user = await User.findOne({ forgotPasswordToken: hashedToken });
 
    if (!user) {
-      throw new ApiError(404, "Invalid  password reset token");
+      throw new ApiError(400, "Invalid password reset token");
    }
    if (user.forgotPasswordTokenExpiry < Date.now()) {
       throw new ApiError(400, "Password reset token has expired");
@@ -496,7 +499,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
    const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword);
 
    if (!isOldPasswordCorrect) {
-      throw new ApiError(400, "Invalid old password");
+      throw new ApiError(401, "Invalid old password");
    }
 
    user.password = newPassword;

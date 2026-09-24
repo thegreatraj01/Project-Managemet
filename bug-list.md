@@ -1,1 +1,1 @@
-- i can not refresh token if the access token is expired
+- Cannot refresh access token when the access token is expired. || Fixed

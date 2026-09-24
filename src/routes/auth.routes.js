@@ -24,7 +24,7 @@ import {
 import { verifyJwt } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
-// routes
+// unsecure routes
 router.route("/register").post(userRegisterValidator(), validate, registerUser);
 router.route("/login").post(userLoginValidator(), validate, loginUser);
 router.route("/verify-email/:verificationToken").get(verifyEmail);
@@ -39,14 +39,16 @@ router
    .route("/reset-password/:resetToken")
    .post(forgotPasswordValidator(), validate, resetForgottenPassword);
 
-// secure route
+// Refresh flow must not depend on an unexpired access token.
+// It should validate the refresh token from the cookie/body instead.
+router.route("/refresh-token").post(refreshAccessToken);
+
+// secure routes
 router.route("/logout").post(verifyJwt, logoutUser);
 router.route("/current-user").get(verifyJwt, getCurrentUser);
 router
    .route("/resend-verification-email")
    .post(verifyJwt, resendVerificationEmail);
-
-router.route("/refresh-token").post(verifyJwt, refreshAccessToken);
 router
    .route("/change-password")
    .post(verifyJwt, changePasswordValidator(), validate, changeCurrentPassword);
