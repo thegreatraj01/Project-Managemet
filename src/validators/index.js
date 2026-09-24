@@ -54,3 +54,15 @@ export const passwordResetRequestEmailValidator = () => {
          .withMessage("Email is not valid"),
    ];
 };
+
+// this will be used to validate the password on reset password or forgot password route beacause password validation is same for both
+export const passwordValidator = () => {
+   return [
+      body("newPassword")
+         .trim()
+         .notEmpty()
+         .withMessage("New password is required")
+         .isLength({ min: 6 })
+         .withMessage("New password must be at least 6 characters long"),
+   ];
+};

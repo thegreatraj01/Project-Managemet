@@ -426,6 +426,54 @@ const forgotPasswordEmailRequest = asyncHandler(async (req, res) => {
       );
 });
 
+/**
+ * Controller to handle password reset using the token sent to the user's email.
+ * Used for when a user forgets their password and requests a reset.
+ */
+
+// TODO: Check if the new password is same as old password and throw error if it is same
+// TODO: Add password strength validation for new password
+// TODO: Add rate limiting for password reset to prevent abuse
+
+const resetForgottenPassword = asyncHandler(async (req, res) => {
+   const { resetToken } = req.params;
+   const { newPassword } = req.body;
+
+   // if (resetToken.trim() === "" || resetToken === "undefined") {
+   //    throw new ApiError(400,"");
+   // }
+
+   const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+   const user = await User.findOne({ forgotPasswordToken: hashedToken });
+
+   if (!user) {
+      throw new ApiError(404, "Invalid  password reset token");
+   }
+   if (user.forgotPasswordTokenExpiry < Date.now()) {
+      throw new ApiError(400, "Password reset token has expired");
+   }
+
+   user.password = newPassword;
+   user.forgotPasswordToken = undefined;
+   user.forgotPasswordTokenExpiry = undefined;
+
+   await user.save({ validateBeforeSave: false });
+
+   return res
+      .status(200)
+      .json(
+         new ApiResponse(
+            200,
+            {},
+            "Password has been reset successfully. You can now log in with your new password.",
+         ),
+      );
+});
+
 export {
    registerUser,
    genrateAccessAndRefreshToken,
@@ -436,4 +484,5 @@ export {
    resendVerificationEmail,
    refreshAccessToken,
    forgotPasswordEmailRequest,
+   resetForgottenPassword,
 };
