@@ -9,12 +9,14 @@ import {
    refreshAccessToken,
    forgotPasswordEmailRequest,
    resetForgottenPassword,
+   changeCurrentPassword,
 } from "../controllers/auth.controller.js";
 
 import { validate } from "../middleware/validator.middleware.js";
 import {
+   forgotPasswordValidator,
    passwordResetRequestEmailValidator,
-   passwordValidator,
+   changePasswordValidator,
    userLoginValidator,
    userRegisterValidator,
 } from "../validators/index.js";
@@ -35,7 +37,7 @@ router
    );
 router
    .route("/reset-password/:resetToken")
-   .post(passwordValidator(), validate, resetForgottenPassword);
+   .post(forgotPasswordValidator(), validate, resetForgottenPassword);
 
 // secure route
 router.route("/logout").post(verifyJwt, logoutUser);
@@ -45,5 +47,9 @@ router
    .post(verifyJwt, resendVerificationEmail);
 
 router.route("/refresh-token").post(verifyJwt, refreshAccessToken);
+router
+   .route("/change-password")
+   .post(verifyJwt, changePasswordValidator(), validate, changeCurrentPassword);
+
 // export router
 export default router;

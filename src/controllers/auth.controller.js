@@ -121,7 +121,7 @@ const loginUser = asyncHandler(async (req, res) => {
       throw new ApiError(401, "User not exist");
    }
 
-   const isPasswordValid = user.isPasswordCorrect(password);
+   const isPasswordValid = await user.isPasswordCorrect(password);
 
    if (!isPasswordValid) {
       throw new ApiError(401, "Invalid password");
@@ -429,6 +429,11 @@ const forgotPasswordEmailRequest = asyncHandler(async (req, res) => {
 /**
  * Controller to handle password reset using the token sent to the user's email.
  * Used for when a user forgets their password and requests a reset.
+ *
+ * @param {object} req - Express request object containing the reset token and new password.
+ * @param {object} res - Express response object used to send the result.
+ * @returns {Promise<void>} Resolves after resetting the password and sending a success response.
+ * @throws {ApiError} If the reset token is invalid, expired, or the user does not exist.  
  */
 
 // TODO: Check if the new password is same as old password and throw error if it is same
@@ -474,6 +479,40 @@ const resetForgottenPassword = asyncHandler(async (req, res) => {
       );
 });
 
+/**
+ * Controller to change password
+ * if a user wants to change current password this controller will handle this
+ *
+ * @param {object} req - Express request object containing the old and new password.
+ * @param {object} res - Express response object used to send the result.
+ * @returns {Promise<void>} Resolves after changing the password and sending a success response.
+ * @throws {ApiError} If the old password is incorrect or the user does not exist.
+ */
+
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+   const { oldPassword, newPassword } = req.body;
+
+   const user = await User.findById(req.user._id);
+   const isOldPasswordCorrect = await user.isPasswordCorrect(oldPassword);
+
+   if (!isOldPasswordCorrect) {
+      throw new ApiError(400, "Invalid old password");
+   }
+
+   user.password = newPassword;
+   await user.save({ validateBeforeSave: false });
+
+   return res
+      .status(200)
+      .json(
+         new ApiResponse(
+            200,
+            {},
+            "Password has been changed successfully. You can now log in with your new password.",
+         ),
+      );
+});
+
 export {
    registerUser,
    genrateAccessAndRefreshToken,
@@ -485,4 +524,5 @@ export {
    refreshAccessToken,
    forgotPasswordEmailRequest,
    resetForgottenPassword,
+   changeCurrentPassword,
 };
