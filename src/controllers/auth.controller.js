@@ -4,6 +4,7 @@ import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyns-handler.js";
 import { sendVerificationEmail } from "../services/emailService.js";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 
 /**
  * Auth controller for user signup, login, and logout flows.
@@ -22,12 +23,15 @@ import crypto from "crypto";
 const genrateAccessAndRefreshToken = async (userId) => {
    try {
       const user = await User.findById(userId);
-      const AccessToken = user.createAccessToken();
-      const RefreshToken = user.createRefreshToken();
+      if (!user) {
+         throw new ApiError(404, "User not found");
+      }
+      const accessToken = user.createAccessToken();
+      const refreshToken = user.createRefreshToken();
 
-      user.refreshToken = RefreshToken;
+      user.refreshToken = refreshToken;
       await user.save({ validateBeforeSave: false });
-      return { AccessToken, RefreshToken };
+      return { accessToken, refreshToken };
    } catch (error) {
       throw new ApiError("Something Went Wrong", 500);
    }
@@ -124,7 +128,7 @@ const loginUser = asyncHandler(async (req, res) => {
       "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry",
    );
 
-   const { AccessToken, RefreshToken } = await genrateAccessAndRefreshToken(
+   const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(
       user._id,
    );
 
@@ -135,15 +139,15 @@ const loginUser = asyncHandler(async (req, res) => {
    };
 
    res.status(200)
-      .cookie("refreshToken", RefreshToken, cookieOptions)
-      .cookie("accessToken", AccessToken, cookieOptions)
+      .cookie("refreshToken", refreshToken, cookieOptions)
+      .cookie("accessToken", accessToken, cookieOptions)
       .json(
          new ApiResponse(
             200,
             {
                user: loggedInUser,
-               AccessToken,
-               RefreshToken,
+               accessToken,
+               refreshToken,
             },
             "User logged in successfully",
          ),
@@ -308,6 +312,56 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, {}, "Verification email resent successfully"));
 });
 
+const refreshAccessToken = asyncHandler(async (req, res) => {
+   const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+
+   if (!refreshToken) {
+      throw new ApiError(401, "Refresh token is required");
+   }
+
+   try {
+      const decoded = jwt.verify(
+         refreshToken,
+         process.env.REFRESH_TOKEN_SECRET,
+      );
+
+      const user = await User.findById(decoded?._id);
+      if (!user) {
+         throw new ApiError(401, "Invalid refresh token");
+      }
+      if (user.refreshToken !== refreshToken) {
+         throw new ApiError(401, "Refresh token mismatch");
+      }
+
+      const { accessToken, refreshToken: newRefreshToken } =
+         await genrateAccessAndRefreshToken(user._id);
+
+      user.refreshToken = newRefreshToken;
+      await user.save();
+
+      const cookieOptions = {
+         httpOnly: true,
+         secure: true,
+         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+      };
+
+      res.status(200)
+         .cookie("refreshToken", newRefreshToken, cookieOptions)
+         .cookie("accessToken", accessToken, cookieOptions)
+         .json(
+            new ApiResponse(
+               200,
+               { accessToken, refreshToken: newRefreshToken },
+               "Access token refreshed successfully",
+            ),
+         );
+   } catch (error) {
+      throw new ApiError(
+         401,
+         error.message || "Invalid or expired refresh token",
+      );
+   }
+});
 export {
    registerUser,
    genrateAccessAndRefreshToken,
@@ -316,4 +370,5 @@ export {
    getCurrentUser,
    verifyEmail,
    resendVerificationEmail,
+   refreshAccessToken,
 };

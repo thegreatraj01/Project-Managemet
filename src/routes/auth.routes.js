@@ -6,6 +6,7 @@ import {
    getCurrentUser,
    verifyEmail,
    resendVerificationEmail,
+   refreshAccessToken,
 } from "../controllers/auth.controller.js";
 
 import { validate } from "../middleware/validator.middleware.js";
@@ -29,5 +30,6 @@ router
    .route("/resend-verification-email")
    .post(verifyJwt, resendVerificationEmail);
 
+router.route("/refresh-token").post(verifyJwt, refreshAccessToken);
 // export router
 export default router;
