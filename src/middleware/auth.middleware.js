@@ -32,7 +32,7 @@ export const verifyJwt = asyncHandler(async (req, res, next) => {
       token === "undefined"
    ) {
       console.log("No token provided or token is invalid:", token);
-      throw new ApiError(401, "Access Denied");
+      throw new ApiError(401, "Invalid Access Token");
    }
 
    try {
