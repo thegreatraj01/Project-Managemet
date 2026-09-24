@@ -18,10 +18,10 @@ const emailVerificationMailgenContent = (username, verificationUrl) => {
    };
 };
 
-const forgotPasswordMailgenContent = (username, passwordResetUrl) => {
+const forgotPasswordMailgenContent = (fullname, passwordResetUrl) => {
    return {
       body: {
-         name: username,
+         name: fullname,
          intro: "You have requested to reset your password.",
          action: {
             instructions:

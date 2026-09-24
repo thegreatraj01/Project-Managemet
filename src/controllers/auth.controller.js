@@ -2,7 +2,10 @@ import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyns-handler.js";
-import { sendVerificationEmail } from "../services/emailService.js";
+import {
+   sendForgotPasswordEmail,
+   sendVerificationEmail,
+} from "../services/emailService.js";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 
@@ -138,7 +141,8 @@ const loginUser = asyncHandler(async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
    };
 
-   res.status(200)
+   return res
+      .status(200)
       .cookie("refreshToken", refreshToken, cookieOptions)
       .cookie("accessToken", accessToken, cookieOptions)
       .json(
@@ -172,7 +176,8 @@ const logoutUser = asyncHandler(async (req, res) => {
       maxAge: 0, // Set maxAge to 0 to expire the cookie immediately
    };
 
-   res.status(200)
+   return res
+      .status(200)
       .clearCookie("refreshToken", cookieOptions)
       .clearCookie("accessToken", cookieOptions)
       .json(new ApiResponse(200, null, "User logged out successfully"));
@@ -194,9 +199,9 @@ const getCurrentUser = asyncHandler(async (req, res) => {
    if (!user) {
       throw new ApiError(404, "User not found");
    }
-   res.status(200).json(
-      new ApiResponse(200, { user }, "User data retrieved successfully"),
-   );
+   return res
+      .status(200)
+      .json(new ApiResponse(200, { user }, "User data retrieved successfully"));
 });
 
 /**
@@ -359,7 +364,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
       };
 
-      res.status(200)
+      return res
+         .status(200)
          .cookie("refreshToken", newRefreshToken, cookieOptions)
          .cookie("accessToken", accessToken, cookieOptions)
          .json(
@@ -376,6 +382,50 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       );
    }
 });
+
+/**
+ * Handles a password reset request by generating a temporary token,
+ * sending a password reset email, and returning a success response.
+ *
+ * @param {object} req - Express request object containing the user's email.
+ * @param {object} res - Express response object used to send the result.
+ * @returns {Promise<void>} Resolves after sending the password reset email.
+ * @throws {ApiError} If the user does not exist or email sending fails.
+ */
+
+// TODO: add rate limiting for forgot password request to prevent abuse
+// EXTRA: I HAVE ADDED EMAIL VALIDATION FOR FORGOT PASSWORD REQUEST
+const forgotPasswordEmailRequest = asyncHandler(async (req, res) => {
+   const { email } = req.body;
+   console.log(email);
+   const user = await User.findOne({ email });
+
+   if (!user) {
+      throw new ApiError(404, "User not found");
+   }
+
+   const { unhashToken, hashToken, expiry } = user.genrateTemporaryToken();
+
+   user.forgotPasswordToken = hashToken;
+   user.forgotPasswordTokenExpiry = expiry;
+
+   await user.save({ validateBeforeSave: false });
+
+   const passwordResetUrl = `${process.env.FROGOT_PASSWORD_URL}/${unhashToken}`;
+
+   await sendForgotPasswordEmail(user.email, user.fullname, passwordResetUrl);
+
+   return res
+      .status(200)
+      .json(
+         new ApiResponse(
+            200,
+            {},
+            "Password reset email sent successfully. Please check your inbox.",
+         ),
+      );
+});
+
 export {
    registerUser,
    genrateAccessAndRefreshToken,
@@ -385,4 +435,5 @@ export {
    verifyEmail,
    resendVerificationEmail,
    refreshAccessToken,
+   forgotPasswordEmailRequest,
 };

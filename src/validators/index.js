@@ -43,3 +43,14 @@ export const userLoginValidator = () => {
          .withMessage("Password must be at least 6 characters long"),
    ];
 };
+
+export const passwordResetRequestEmailValidator = () => {
+   return [
+      body("email")
+         .trim()
+         .notEmpty()
+         .withMessage("Email is required")
+         .isEmail()
+         .withMessage("Email is not valid"),
+   ];
+};

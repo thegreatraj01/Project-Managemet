@@ -67,15 +67,15 @@ const sendVerificationEmail = async (toEmail, username, verificationUrl) => {
  * Sends an email containing the user's password reset link.
  *
  * @param {string} toEmail - Recipient's email address.
- * @param {string} username - Name displayed in the email.
+ * @param {string} fullname - Name displayed in the email.
  * @param {string} passwordResetUrl - Password reset link.
  * @returns {Promise<object>} Brevo API response.
  */
-const sendForgotPasswordEmail = async (toEmail, username, passwordResetUrl) => {
+const sendForgotPasswordEmail = async (toEmail, fullname, passwordResetUrl) => {
    return sendMail(
       toEmail,
       "Reset your password",
-      forgotPasswordMailgenContent(username, passwordResetUrl),
+      forgotPasswordMailgenContent(fullname, passwordResetUrl),
    );
 };
 
