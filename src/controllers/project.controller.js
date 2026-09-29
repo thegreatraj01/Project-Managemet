@@ -7,13 +7,84 @@ import mongoose from "mongoose";
 import { UserRoleEnums } from "../utils/constant.js";
 
 /**
- * Lists projects available to the authenticated user.
+ * Lists projects created by or shared with the authenticated user, with member counts.
  * @route GET /api/v1/projects
  * @access Authenticated
- * @todo Implement project listing and member counts.
  */
-export const getProject = asyncHandler(async (req, res) => {
-   // test
+export const getProjects = asyncHandler(async (req, res) => {
+   // Aggregation comparisons need the same BSON type as the stored ObjectId.
+   const userId = new mongoose.Types.ObjectId(req.user._id);
+   const projectMemberCollection = ProjectMember.collection.name;
+
+   const projects = await Project.aggregate([
+      // Find whether this user has a membership record for each project.
+      {
+         $lookup: {
+            from: projectMemberCollection,
+            let: { projectId: "$_id" },
+            pipeline: [
+               {
+                  $match: {
+                     $expr: {
+                        $and: [
+                           { $eq: ["$project", "$$projectId"] },
+                           { $eq: ["$user", userId] },
+                        ],
+                     },
+                  },
+               },
+               { $limit: 1 },
+               { $project: { _id: 1 } },
+            ],
+            as: "currentUserMembership",
+         },
+      },
+      // Keep projects created by the user or joined through a membership.
+      {
+         $match: {
+            $or: [
+               { createdBy: userId },
+               { "currentUserMembership.0": { $exists: true } },
+            ],
+         },
+      },
+      // Count all membership records belonging to each visible project.
+      {
+         $lookup: {
+            from: projectMemberCollection,
+            let: { projectId: "$_id" },
+            pipeline: [
+               {
+                  $match: {
+                     $expr: { $eq: ["$project", "$$projectId"] },
+                  },
+               },
+               { $count: "total" },
+            ],
+            as: "memberCountResult",
+         },
+      },
+      // A lookup with no matches returns an empty array, so default its count to 0.
+      {
+         $addFields: {
+            memberCount: {
+               $ifNull: [{ $arrayElemAt: ["$memberCountResult.total", 0] }, 0],
+            },
+         },
+      },
+      // Remove temporary lookup results and show recently created projects first.
+      {
+         $project: {
+            currentUserMembership: 0,
+            memberCountResult: 0,
+         },
+      },
+      { $sort: { createdAt: -1 } },
+   ]);
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, projects, "Projects fetched successfully"));
 });
 
 /**

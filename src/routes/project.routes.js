@@ -4,7 +4,7 @@ import {
    createProject,
    deleteMember,
    deleteProject,
-   getProject,
+   getProjects,
    getProjectById,
    getProjectMembers,
    updateMemberRole,
@@ -16,7 +16,7 @@ const router = express.Router();
 
 router.use(verifyJwt);
 
-router.route("/").get(getProject).post(createProject);
+router.route("/").get(getProjects).post(createProject);
 router
    .route("/:projectId")
    .get(getProjectById)
