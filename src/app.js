@@ -24,9 +24,11 @@ app.use(
 // routes configuration
 import healthCheckRoute from "./routes/healthcheck.route.js";
 import authRouter from "./routes/auth.routes.js";
+import projectRouter from "./routes/project.routes.js";
 
 app.use("/api/v1/healthcheck", healthCheckRoute);
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/projects", projectRouter);
 
 // Global error handling middleware
 app.use((error, req, res, next) => {

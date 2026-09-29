@@ -11,7 +11,7 @@ const projectMemberSchema = new Schema(
       project: {
          type: Schema.Types.ObjectId,
          ref: "Project",
-         required: ture,
+         required: true,
       },
       role: {
          type: String,
@@ -22,4 +22,7 @@ const projectMemberSchema = new Schema(
    { timestamps: true },
 );
 
-const ProjectMember = mongoose.model("ProjectMember", projectMemberSchema);
+export const ProjectMember = mongoose.model(
+   "ProjectMember",
+   projectMemberSchema,
+);
