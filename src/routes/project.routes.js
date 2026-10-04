@@ -10,13 +10,22 @@ import {
    updateMemberRole,
    updateProject,
 } from "../controllers/project.controller.js";
-import { verifyJwt } from "../middleware/auth.middleware.js";
+
+import {
+   createProjectValidator,
+   addMemberToProjectValidator,
+} from "../validators/index.js";
+
+import { verifyJwt, validate } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
 router.use(verifyJwt);
 
-router.route("/").get(getProjects).post(createProject);
+router
+   .route("/")
+   .get(getProjects)
+   .post(createProjectValidator(), validate, createProject);
 router
    .route("/:projectId")
    .get(getProjectById)
@@ -25,7 +34,7 @@ router
 router
    .route("/:projectId/members")
    .get(getProjectMembers)
-   .post(addMembersToProject);
+   .post(addMemberToProjectValidator(), validate, addMembersToProject);
 router
    .route("/:projectId/members/:userId")
    .put(updateMemberRole)
