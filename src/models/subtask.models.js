@@ -12,7 +12,7 @@ const subTaskSchema = new Schema(
          ref: "Task",
          required: true,
       },
-      isComplited: {
+      isCompleted: {
          type: Boolean,
          default: false,
       },

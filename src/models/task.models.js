@@ -28,11 +28,16 @@ const taskSchema = new Schema(
          default: TaskStatusEnums.TODO,
       },
       attachments: {
-         type: {
-            url: String,
-            mimetype: String,
-            size: Number,
-         },
+         type: [
+            {
+               url: {
+                  type: String,
+                  required: true,
+               },
+               mimetype: String,
+               size: Number,
+            },
+         ],
          default: [],
       },
    },
@@ -41,4 +46,4 @@ const taskSchema = new Schema(
    },
 );
 
-export const task = mongoose.model("Task", taskSchema);
+export const Task = mongoose.model("Task", taskSchema);

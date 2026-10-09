@@ -1,8 +1,9 @@
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
-import { ApiResponse } from "../utils/api-response.js";
+import { ProjectMember } from "../models/projectMember.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/asyns-handler.js";
-import jwt from "jsonwebtoken";
 
 /**
  * Verifies the JWT access token sent either in cookies or the Authorization header.
@@ -15,8 +16,6 @@ import jwt from "jsonwebtoken";
  */
 export const verifyJwt = asyncHandler(async (req, res, next) => {
    let token = req.cookies?.accessToken;
-
-   //    console.log("Token from cookies:", token);
 
    if (!token) {
       const authHeader = req.headers?.authorization || req.get("Authorization");
@@ -31,7 +30,6 @@ export const verifyJwt = asyncHandler(async (req, res, next) => {
       token.trim() === "" ||
       token === "undefined"
    ) {
-      console.log("No token provided or token is invalid:", token);
       throw new ApiError(401, "Invalid Access Token");
    }
 
@@ -52,3 +50,34 @@ export const verifyJwt = asyncHandler(async (req, res, next) => {
       throw new ApiError(401, error.message || "Invalid Access Token");
    }
 });
+
+export const validateProjectPermission = (roles = []) => {
+   return asyncHandler(async (req, res, next) => {
+      const { projectId } = req.params;
+
+      if (!projectId) {
+         throw new ApiError(400, "project id is missing");
+      }
+
+      const projectMember = await ProjectMember.findOne({
+         project: new mongoose.Types.ObjectId(projectId),
+         user: new mongoose.Types.ObjectId(req.user._id),
+      });
+
+      if (!projectMember) {
+         throw new ApiError(403, "You are not a member of this project");
+      }
+
+      const givenRole = projectMember.role;
+      req.user.role = givenRole;
+
+      if (!roles.includes(givenRole)) {
+         throw new ApiError(
+            403,
+            "You do not have permission to perform this action",
+         );
+      }
+
+      next();
+   });
+};
