@@ -400,6 +400,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 // EXTRA: I HAVE ADDED EMAIL VALIDATION FOR FORGOT PASSWORD REQUEST
 const forgotPasswordEmailRequest = asyncHandler(async (req, res) => {
    const { email } = req.body;
+   // BUG: Logging the submitted email exposes personally identifiable data in application logs.
    console.log(email);
    const user = await User.findOne({ email });
 

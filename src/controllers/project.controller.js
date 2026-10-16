@@ -7,6 +7,14 @@ import { asyncHandler } from "../utils/asyns-handler.js";
 import mongoose from "mongoose";
 import { AvailableUserRoles, UserRoleEnums } from "../utils/constant.js";
 
+/**
+ * Loads a project after confirming that the user is its creator or an admin.
+ *
+ * @param {string} userId - Authenticated user's ID.
+ * @param {string} projectId - Project ID to authorize.
+ * @returns {Promise<import("mongoose").Document>} The authorized project document.
+ * @throws {ApiError} If the project does not exist or the user lacks admin access.
+ */
 const ensureProjectAdminAccess = async (userId, projectId) => {
    const project = await Project.findById(projectId);
 
@@ -42,6 +50,9 @@ const ensureProjectAdminAccess = async (userId, projectId) => {
  * Lists projects created by or shared with the authenticated user, with member counts.
  * @route GET /api/v1/projects
  * @access Authenticated
+ * @param {import("express").Request} req - Authenticated Express request.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after returning visible projects.
  */
 export const getProjects = asyncHandler(async (req, res) => {
    // Aggregation comparisons need the same BSON type as the stored ObjectId.
@@ -123,7 +134,10 @@ export const getProjects = asyncHandler(async (req, res) => {
  * Returns one project by ID.
  * @route GET /api/v1/projects/:projectId
  * @access Authenticated project member
- * @todo Implement project lookup and membership authorization.
+ * @param {import("express").Request} req - Authenticated request with `projectId`.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after returning the project.
+ * @throws {ApiError} If the project is missing or the user is not a member.
  */
 export const getProjectById = asyncHandler(async (req, res) => {
    const { projectId } = req.params;
@@ -153,10 +167,12 @@ export const getProjectById = asyncHandler(async (req, res) => {
  * Creates a project and assigns its creator the admin role.
  * @route POST /api/v1/projects
  * @access Authenticated
- *
+ * @param {import("express").Request} req - Authenticated request with project fields.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after creating the project and membership.
+ * @throws {ApiError} If project or membership creation fails.
  */
 export const createProject = asyncHandler(async (req, res) => {
-   // test
    const { name, description } = req.body;
 
    const project = await Project.create({
@@ -165,6 +181,7 @@ export const createProject = asyncHandler(async (req, res) => {
       createdBy: new mongoose.Types.ObjectId(req.user?._id),
    });
 
+   // BUG: If membership creation fails, the project remains without its creator's membership.
    await ProjectMember.create({
       user: new mongoose.Types.ObjectId(req.user?._id),
       project: new mongoose.Types.ObjectId(project._id),
@@ -180,6 +197,10 @@ export const createProject = asyncHandler(async (req, res) => {
  * Updates a project owned by the authenticated user.
  * @route PUT /api/v1/projects/:projectId
  * @access Project admin
+ * @param {import("express").Request} req - Authenticated request with project fields.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after updating the project.
+ * @throws {ApiError} If the project is missing or the user lacks admin access.
  */
 export const updateProject = asyncHandler(async (req, res) => {
    const { projectId } = req.params;
@@ -200,12 +221,17 @@ export const updateProject = asyncHandler(async (req, res) => {
  * Deletes a project owned by the authenticated user and its memberships.
  * @route DELETE /api/v1/projects/:projectId
  * @access Project admin
+ * @param {import("express").Request} req - Authenticated request with `projectId`.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after deleting the project.
+ * @throws {ApiError} If the project is missing or the user lacks admin access.
  */
 export const deleteProject = asyncHandler(async (req, res) => {
    const { projectId } = req.params;
 
    const project = await ensureProjectAdminAccess(req.user._id, projectId);
 
+   // BUG: Tasks, subtasks, and notes are not removed, leaving orphaned records.
    await project.deleteOne();
    await ProjectMember.deleteMany({ project: project._id });
 
@@ -219,7 +245,10 @@ export const deleteProject = asyncHandler(async (req, res) => {
  * Only project admin can add a new member
  * @route POST /api/v1/projects/:projectId/members
  * @access Project admin
- *
+ * @param {import("express").Request} req - Authenticated request with member email and role.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after adding or updating the membership.
+ * @throws {ApiError} If input is invalid, the user is missing, or access is denied.
  */
 export const addMembersToProject = asyncHandler(async (req, res) => {
    const { email, role } = req.body;
@@ -262,7 +291,10 @@ export const addMembersToProject = asyncHandler(async (req, res) => {
  * Lists members of a project.
  * @route GET /api/v1/projects/:projectId/members
  * @access Authenticated project member
- * @todo Implement member listing and membership authorization.
+ * @param {import("express").Request} req - Authenticated request with `projectId`.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after returning project members.
+ * @throws {ApiError} If the project is missing or the user is not a member.
  */
 export const getProjectMembers = asyncHandler(async (req, res) => {
    const { projectId } = req.params;
@@ -330,7 +362,10 @@ export const getProjectMembers = asyncHandler(async (req, res) => {
  * Changes a project member's role.
  * @route PUT /api/v1/projects/:projectId/members/:userId
  * @access Project admin
- * @todo Implement role updates and authorization.
+ * @param {import("express").Request} req - Authenticated request with project/member IDs and new role.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after updating the role.
+ * @throws {ApiError} If the role or member is invalid, or access is denied.
  */
 export const updateMemberRole = asyncHandler(async (req, res) => {
    const { userId, projectId } = req.params;
@@ -374,7 +409,10 @@ export const updateMemberRole = asyncHandler(async (req, res) => {
  * Removes a member from a project.
  * @route DELETE /api/v1/projects/:projectId/members/:userId
  * @access Project admin
- * @todo Implement member removal and authorization.
+ * @param {import("express").Request} req - Authenticated request with project and member IDs.
+ * @param {import("express").Response} res - Express response.
+ * @returns {Promise<void>} Resolves after removing the membership.
+ * @throws {ApiError} If the member is missing or access is denied.
  */
 export const deleteMember = asyncHandler(async (req, res) => {
    const { userId, projectId } = req.params;
