@@ -16,7 +16,8 @@ import {
    addMemberToProjectValidator,
 } from "../validators/index.js";
 
-import { verifyJwt, validate } from "../middleware/auth.middleware.js";
+import { verifyJwt } from "../middleware/auth.middleware.js";
+import { validate } from "../middleware/validator.middleware.js";
 
 const router = express.Router();
 

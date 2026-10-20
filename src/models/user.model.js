@@ -112,8 +112,8 @@ userSchema.methods.createRefreshToken = function () {
    );
 };
 
-// method to create hashToken unhash token and expiery for token using crypto module
-userSchema.methods.genrateTemporaryToken = function () {
+// Generates a one-time token and its hashed database value.
+userSchema.methods.generateTemporaryToken = function () {
    const unhashToken = crypto.randomBytes(20).toString("hex");
    const hashToken = crypto
       .createHash("sha256")

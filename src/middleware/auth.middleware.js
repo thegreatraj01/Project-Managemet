@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import { User } from "../models/user.model.js";
 import { ProjectMember } from "../models/projectMember.models.js";
 import { ApiError } from "../utils/api-error.js";
-import { asyncHandler } from "../utils/asyns-handler.js";
+import { asyncHandler } from "../utils/async-handler.js";
 
 /**
  * Verifies the JWT access token sent either in cookies or the Authorization header.
@@ -57,6 +57,9 @@ export const validateProjectPermission = (roles = []) => {
 
       if (!projectId) {
          throw new ApiError(400, "project id is missing");
+      }
+      if (!mongoose.isValidObjectId(projectId)) {
+         throw new ApiError(400, "Invalid project id");
       }
 
       const projectMember = await ProjectMember.findOne({

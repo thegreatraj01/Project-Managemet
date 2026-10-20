@@ -4,7 +4,7 @@ const projectSchema = new Schema(
    {
       name: {
          type: String,
-         requiered: true,
+         required: true,
          unique: true,
          trim: true,
       },

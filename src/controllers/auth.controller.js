@@ -1,7 +1,7 @@
 import { User } from "../models/user.model.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
-import { asyncHandler } from "../utils/asyns-handler.js";
+import { asyncHandler } from "../utils/async-handler.js";
 import {
    sendForgotPasswordEmail,
    sendVerificationEmail,
@@ -23,7 +23,7 @@ import jwt from "jsonwebtoken";
  * @returns {Promise<{ AccessToken: string, RefreshToken: string }>} Object containing both tokens.
  * @throws {ApiError} If token generation or database update fails.
  */
-const genrateAccessAndRefreshToken = async (userId) => {
+const generateAccessAndRefreshTokens = async (userId) => {
    try {
       const user = await User.findById(userId);
       if (!user) {
@@ -72,9 +72,9 @@ const registerUser = asyncHandler(async (req, res) => {
       isEmailVerified: false,
    });
 
-   await genrateAccessAndRefreshToken(user._id);
+   await generateAccessAndRefreshTokens(user._id);
 
-   const { unhashToken, hashToken, expiry } = user.genrateTemporaryToken();
+   const { unhashToken, hashToken, expiry } = user.generateTemporaryToken();
 
    user.emailVerificationToken = hashToken;
    user.emailVerificationTokenExpiry = expiry;
@@ -121,20 +121,20 @@ const loginUser = asyncHandler(async (req, res) => {
    const user = await User.findOne({ email });
 
    if (!user) {
-      throw new ApiError(404, "User not found");
+      throw new ApiError(401, "Invalid email or password");
    }
 
    const isPasswordValid = await user.isPasswordCorrect(password);
 
    if (!isPasswordValid) {
-      throw new ApiError(401, "Invalid password");
+      throw new ApiError(401, "Invalid email or password");
    }
 
    const loggedInUser = await User.findById(user._id).select(
       "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry -forgotPasswordToken -forgotPasswordTokenExpiry",
    );
 
-   const { accessToken, refreshToken } = await genrateAccessAndRefreshToken(
+   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
       user._id,
    );
 
@@ -310,7 +310,7 @@ const resendVerificationEmail = asyncHandler(async (req, res) => {
       throw new ApiError(409, "Email is already verified");
    }
 
-   const { unhashToken, hashToken, expiry } = user.genrateTemporaryToken();
+   const { unhashToken, hashToken, expiry } = user.generateTemporaryToken();
 
    user.emailVerificationToken = hashToken;
    user.emailVerificationTokenExpiry = expiry;
@@ -356,7 +356,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       }
 
       const { accessToken, refreshToken: newRefreshToken } =
-         await genrateAccessAndRefreshToken(user._id);
+         await generateAccessAndRefreshTokens(user._id);
 
       user.refreshToken = newRefreshToken;
       await user.save();
@@ -401,21 +401,25 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 const forgotPasswordEmailRequest = asyncHandler(async (req, res) => {
    const { email } = req.body;
    // BUG: Logging the submitted email exposes personally identifiable data in application logs.
-   console.log(email);
    const user = await User.findOne({ email });
 
    if (!user) {
       throw new ApiError(404, "User not found");
    }
 
-   const { unhashToken, hashToken, expiry } = user.genrateTemporaryToken();
+   const { unhashToken, hashToken, expiry } = user.generateTemporaryToken();
 
    user.forgotPasswordToken = hashToken;
    user.forgotPasswordTokenExpiry = expiry;
 
    await user.save({ validateBeforeSave: false });
 
-   const passwordResetUrl = `${process.env.FROGOT_PASSWORD_URL}/${unhashToken}`;
+   const passwordResetBaseUrl =
+      process.env.FORGOT_PASSWORD_URL || process.env.FROGOT_PASSWORD_URL;
+   if (!passwordResetBaseUrl) {
+      throw new ApiError(500, "Password reset URL is not configured");
+   }
+   const passwordResetUrl = `${passwordResetBaseUrl}/${unhashToken}`;
 
    await sendForgotPasswordEmail(user.email, user.fullname, passwordResetUrl);
 
@@ -519,7 +523,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 
 export {
    registerUser,
-   genrateAccessAndRefreshToken,
+   generateAccessAndRefreshTokens,
    loginUser,
    logoutUser,
    getCurrentUser,

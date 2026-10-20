@@ -35,11 +35,34 @@ app.use("/api/v1/projects", projectRouter);
 app.use("/api/v1/tasks", taskRouter);
 app.use("/api/v1/notes", notesRouter);
 
+app.use((req, res) => {
+   res.status(404).json({
+      success: false,
+      message: "Route not found",
+      errors: [],
+   });
+});
+
 // Global error handling middleware
 app.use((error, req, res, next) => {
+   if (res.headersSent) {
+      return next(error);
+   }
+
    console.error(error);
 
-   res.status(error.statusCode || 500).json({
+   const statusCode =
+      error.statusCode ||
+      error.status ||
+      (error.code === 11000
+         ? 409
+         : error.name === "CastError"
+           ? 400
+           : error.name === "ValidationError"
+             ? 422
+             : 500);
+
+   res.status(statusCode).json({
       success: false,
       message: error.message || "Internal server error",
       errors: error.errors || [],

@@ -1,10 +1,9 @@
 import { Project } from "../models/project.models.js";
 import { SubTask } from "../models/subtask.models.js";
 import { Task } from "../models/task.models.js";
-import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
-import { asyncHandler } from "../utils/asyns-handler.js";
+import { asyncHandler } from "../utils/async-handler.js";
 import mongoose from "mongoose";
 
 /**
@@ -17,16 +16,14 @@ import mongoose from "mongoose";
  */
 const getTasks = asyncHandler(async (req, res) => {
    const { projectId } = req.params;
-   // BUG: This checks only that the project exists; the route does not authorize project membership for task listing.
    const project = await Project.findById(projectId);
    if (!project) {
       throw new ApiError(404, "Project not found");
    }
 
-   // BUG: The populate projection below uses `fullName`, but the schema stores `fullname`.
    const tasks = await Task.find({
       project: new mongoose.Types.ObjectId(projectId),
-   }).populate("assignedTo", "avatar username fullName");
+   }).populate("assignedTo", "avatar username fullname");
 
    return res
       .status(200)
@@ -83,13 +80,13 @@ const createTask = asyncHandler(async (req, res) => {
  * @throws {ApiError} If the task does not exist.
  */
 const getTaskById = asyncHandler(async (req, res) => {
-   const { taskId } = req.params;
+   const { taskId, projectId } = req.params;
 
-   // BUG: Matching only taskId allows an authorized project member to fetch a task from another project.
    const task = await Task.aggregate([
       {
          $match: {
             _id: new mongoose.Types.ObjectId(taskId),
+            project: new mongoose.Types.ObjectId(projectId),
          },
       },
       {
@@ -103,8 +100,7 @@ const getTaskById = asyncHandler(async (req, res) => {
                   $project: {
                      _id: 1,
                      username: 1,
-                     // BUG: The User schema field is `fullname`, not `fullName`.
-                     fullName: 1,
+                     fullname: 1,
                      avatar: 1,
                   },
                },
@@ -129,8 +125,7 @@ const getTaskById = asyncHandler(async (req, res) => {
                            $project: {
                               _id: 1,
                               username: 1,
-                              // BUG: The User schema field is `fullname`, not `fullName`.
-                              fullName: 1,
+                              fullname: 1,
                               avatar: 1,
                            },
                         },
@@ -175,10 +170,12 @@ const getTaskById = asyncHandler(async (req, res) => {
  */
 const updateTask = asyncHandler(async (req, res) => {
    const { title, description, status } = req.body;
-   const { taskId } = req.params;
+   const { taskId, projectId } = req.params;
 
-   // BUG: The task is not constrained to req.params.projectId, so another project's task can be modified.
-   const task = await Task.findById(taskId);
+   const task = await Task.findOne({
+      _id: new mongoose.Types.ObjectId(taskId),
+      project: new mongoose.Types.ObjectId(projectId),
+   });
    if (!task) {
       throw new ApiError(404, "Task not available");
    }
@@ -203,14 +200,17 @@ const updateTask = asyncHandler(async (req, res) => {
  * @throws {ApiError} If the task does not exist.
  */
 const deleteTask = asyncHandler(async (req, res) => {
-   const { taskId } = req.params;
+   const { taskId, projectId } = req.params;
 
-   // BUG: The task is not constrained to req.params.projectId, so another project's task can be deleted.
-   const task = await Task.findById(taskId);
+   const task = await Task.findOne({
+      _id: new mongoose.Types.ObjectId(taskId),
+      project: new mongoose.Types.ObjectId(projectId),
+   });
    if (!task) {
       throw new ApiError(404, "Task not available");
    }
 
+   await SubTask.deleteMany({ task: task._id });
    await task.deleteOne();
 
    return res
@@ -227,9 +227,16 @@ const deleteTask = asyncHandler(async (req, res) => {
  */
 const createSubTask = asyncHandler(async (req, res) => {
    const { title } = req.body;
-   const { taskId } = req.params;
+   const { taskId, projectId } = req.params;
 
-   // BUG: The referenced task is not checked against the authorized project (or for existence).
+   const task = await Task.exists({
+      _id: new mongoose.Types.ObjectId(taskId),
+      project: new mongoose.Types.ObjectId(projectId),
+   });
+   if (!task) {
+      throw new ApiError(404, "Task not found");
+   }
+
    const subTask = await SubTask.create({
       title,
       createdBy: new mongoose.Types.ObjectId(req.user._id),
@@ -251,11 +258,17 @@ const createSubTask = asyncHandler(async (req, res) => {
  */
 const updateSubTask = asyncHandler(async (req, res) => {
    const { title, isCompleted } = req.body;
-   const { subTaskId } = req.params;
+   const { subTaskId, projectId } = req.params;
 
-   // BUG: The subtask is not constrained to a task in req.params.projectId.
    const subTask = await SubTask.findById(subTaskId);
    if (!subTask) {
+      throw new ApiError(404, "Subtask not found");
+   }
+   const task = await Task.exists({
+      _id: subTask.task,
+      project: new mongoose.Types.ObjectId(projectId),
+   });
+   if (!task) {
       throw new ApiError(404, "Subtask not found");
    }
 
@@ -280,13 +293,21 @@ const updateSubTask = asyncHandler(async (req, res) => {
  * @throws {ApiError} If the subtask does not exist.
  */
 const deleteSubTask = asyncHandler(async (req, res) => {
-   const { subTaskId } = req.params;
+   const { subTaskId, projectId } = req.params;
 
-   // BUG: The subtask is not constrained to a task in req.params.projectId.
-   const deletedSubTask = await SubTask.findByIdAndDelete(subTaskId);
-   if (!deletedSubTask) {
+   const subTask = await SubTask.findById(subTaskId);
+   if (!subTask) {
       throw new ApiError(404, "Subtask not found");
    }
+   const task = await Task.exists({
+      _id: subTask.task,
+      project: new mongoose.Types.ObjectId(projectId),
+   });
+   if (!task) {
+      throw new ApiError(404, "Subtask not found");
+   }
+
+   await subTask.deleteOne();
 
    return res
       .status(200)

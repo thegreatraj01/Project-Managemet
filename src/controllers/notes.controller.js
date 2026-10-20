@@ -3,7 +3,7 @@ import { User } from "../models/user.model.js";
 import { ProjectMember } from "../models/projectMember.models.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
-import { asyncHandler } from "../utils/asyns-handler.js";
+import { asyncHandler } from "../utils/async-handler.js";
 import mongoose from "mongoose";
 import { AvailableUserRoles, UserRoleEnums } from "../utils/constant.js";
 import { ProjectNote } from "../models/note.models.js";
@@ -20,11 +20,11 @@ export const getAllNotes = asyncHandler(async (req, res) => {
    const { projectId } = req.params;
 
    if (!projectId) {
-      throw new ApiError(404, "ProjectId is required");
+      throw new ApiError(400, "ProjectId is required");
    }
 
    const notes = await ProjectNote.find({
-      project: mongoose.Types.ObjectId(projectId),
+      project: new mongoose.Types.ObjectId(projectId),
    });
 
    return res
@@ -50,8 +50,8 @@ export const createNote = asyncHandler(async (req, res) => {
 
    const newNote = await ProjectNote.create({
       content: content.trim(),
-      project: mongoose.Types.ObjectId(projectId),
-      createdBy: mongoose.Types.ObjectId(req.user._id),
+      project: new mongoose.Types.ObjectId(projectId),
+      createdBy: new mongoose.Types.ObjectId(req.user._id),
    });
 
    return res
@@ -71,8 +71,8 @@ export const getNoteById = asyncHandler(async (req, res) => {
    const { noteId, projectId } = req.params;
 
    const note = await ProjectNote.findOne({
-      _id: mongoose.Types.ObjectId(noteId),
-      project: mongoose.Types.ObjectId(projectId),
+      _id: new mongoose.Types.ObjectId(noteId),
+      project: new mongoose.Types.ObjectId(projectId),
    });
 
    if (!note) {
@@ -101,8 +101,8 @@ export const updateNote = asyncHandler(async (req, res) => {
 
    const note = await ProjectNote.findOneAndUpdate(
       {
-         _id: mongoose.Types.ObjectId(noteId),
-         project: mongoose.Types.ObjectId(projectId),
+         _id: new mongoose.Types.ObjectId(noteId),
+         project: new mongoose.Types.ObjectId(projectId),
       },
       {
          content: content.trim(),
@@ -133,8 +133,8 @@ export const deleteNote = asyncHandler(async (req, res) => {
    const { noteId, projectId } = req.params;
 
    const note = await ProjectNote.findOneAndDelete({
-      _id: mongoose.Types.ObjectId(noteId),
-      project: mongoose.Types.ObjectId(projectId),
+      _id: new mongoose.Types.ObjectId(noteId),
+      project: new mongoose.Types.ObjectId(projectId),
    });
 
    if (!note) {

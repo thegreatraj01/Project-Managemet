@@ -3,9 +3,12 @@ import { User } from "../models/user.model.js";
 import { ProjectMember } from "../models/projectMember.models.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
-import { asyncHandler } from "../utils/asyns-handler.js";
+import { asyncHandler } from "../utils/async-handler.js";
 import mongoose from "mongoose";
 import { AvailableUserRoles, UserRoleEnums } from "../utils/constant.js";
+import { Task } from "../models/task.models.js";
+import { SubTask } from "../models/subtask.models.js";
+import { ProjectNote } from "../models/note.models.js";
 
 /**
  * Loads a project after confirming that the user is its creator or an admin.
@@ -35,10 +38,9 @@ const ensureProjectAdminAccess = async (userId, projectId) => {
 
    if (
       !membership ||
-      ![
-         UserRoleEnums.ADMIN,
-         UserRoleEnums.PROJECT_ADMIN,
-      ].includes(membership.role)
+      ![UserRoleEnums.ADMIN, UserRoleEnums.PROJECT_ADMIN].includes(
+         membership.role,
+      )
    ) {
       throw new ApiError(403, "You don't have permission to do this");
    }
@@ -181,12 +183,23 @@ export const createProject = asyncHandler(async (req, res) => {
       createdBy: new mongoose.Types.ObjectId(req.user?._id),
    });
 
-   // BUG: If membership creation fails, the project remains without its creator's membership.
-   await ProjectMember.create({
-      user: new mongoose.Types.ObjectId(req.user?._id),
-      project: new mongoose.Types.ObjectId(project._id),
-      role: UserRoleEnums.ADMIN,
-   });
+   try {
+      await ProjectMember.create({
+         user: new mongoose.Types.ObjectId(req.user?._id),
+         project: new mongoose.Types.ObjectId(project._id),
+         role: UserRoleEnums.ADMIN,
+      });
+   } catch (error) {
+      try {
+         await project.deleteOne();
+      } catch (cleanupError) {
+         console.error(
+            "Failed to remove the project after membership creation failed:",
+            cleanupError,
+         );
+      }
+      throw error;
+   }
 
    return res
       .status(201)
@@ -231,9 +244,14 @@ export const deleteProject = asyncHandler(async (req, res) => {
 
    const project = await ensureProjectAdminAccess(req.user._id, projectId);
 
-   // BUG: Tasks, subtasks, and notes are not removed, leaving orphaned records.
-   await project.deleteOne();
+   const tasks = await Task.find({ project: project._id }).select("_id");
+   const taskIds = tasks.map((task) => task._id);
+
+   await SubTask.deleteMany({ task: { $in: taskIds } });
+   await Task.deleteMany({ project: project._id });
+   await ProjectNote.deleteMany({ project: project._id });
    await ProjectMember.deleteMany({ project: project._id });
+   await project.deleteOne();
 
    return res
       .status(200)
@@ -269,11 +287,13 @@ export const addMembersToProject = asyncHandler(async (req, res) => {
       throw new ApiError(404, "User does not exist");
    }
 
+   const membershipFilter = {
+      user: new mongoose.Types.ObjectId(user._id),
+      project: new mongoose.Types.ObjectId(projectId),
+   };
+   const existingMember = await ProjectMember.exists(membershipFilter);
    const member = await ProjectMember.findOneAndUpdate(
-      {
-         user: new mongoose.Types.ObjectId(user._id),
-         project: new mongoose.Types.ObjectId(projectId),
-      },
+      membershipFilter,
       {
          user: new mongoose.Types.ObjectId(user._id),
          project: new mongoose.Types.ObjectId(projectId),
@@ -282,9 +302,18 @@ export const addMembersToProject = asyncHandler(async (req, res) => {
       { new: true, upsert: true, setDefaultsOnInsert: true },
    );
 
+   const statusCode = existingMember ? 200 : 201;
    return res
-      .status(201)
-      .json(new ApiResponse(201, member, "User added successfully"));
+      .status(statusCode)
+      .json(
+         new ApiResponse(
+            statusCode,
+            member,
+            existingMember
+               ? "User role updated successfully"
+               : "User added successfully",
+         ),
+      );
 });
 
 /**
@@ -316,7 +345,7 @@ export const getProjectMembers = asyncHandler(async (req, res) => {
    }
 
    const projectMembers = await ProjectMember.aggregate([
-      { $match: { project: mongoose.Types.ObjectId(projectId) } },
+      { $match: { project: new mongoose.Types.ObjectId(projectId) } },
       {
          $lookup: {
             from: "users",
