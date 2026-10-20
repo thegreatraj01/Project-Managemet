@@ -20,6 +20,7 @@ import {
    updateSubTaskValidator,
    updateTaskValidator,
 } from "../validators/task.validator.js";
+import { upload } from "../middleware/multer.middleware.js";
 
 const router = express.Router();
 router.use(verifyJwt);
@@ -32,6 +33,7 @@ router
          UserRoleEnums.ADMIN,
          UserRoleEnums.PROJECT_ADMIN,
       ]),
+      upload.array("attachments", 5),
       createTask,
    );
 

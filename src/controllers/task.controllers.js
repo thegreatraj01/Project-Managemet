@@ -49,7 +49,7 @@ const createTask = asyncHandler(async (req, res) => {
 
    const files = req.files || [];
    const attachments = files.map((file) => ({
-      url: `${process.env.SERVER_URL}/images/${file.originalname}`,
+      url: `${(process.env.SERVER_URL || "").replace(/\/$/, "")}/images/${encodeURIComponent(file.filename)}`,
       mimetype: file.mimetype,
       size: file.size,
    }));

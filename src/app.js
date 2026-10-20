@@ -51,20 +51,32 @@ app.use((error, req, res, next) => {
 
    console.error(error);
 
+   const isMulterError = error.name === "MulterError";
    const statusCode =
       error.statusCode ||
       error.status ||
-      (error.code === 11000
-         ? 409
-         : error.name === "CastError"
-           ? 400
-           : error.name === "ValidationError"
-             ? 422
-             : 500);
+      (isMulterError
+         ? error.code === "LIMIT_FILE_SIZE"
+            ? 413
+            : 400
+         : error.code === 11000
+           ? 409
+           : error.name === "CastError"
+             ? 400
+             : error.name === "ValidationError"
+               ? 422
+               : 500);
+
+   const message =
+      isMulterError && error.code === "LIMIT_FILE_SIZE"
+         ? "Each attachment must be 1 MB or smaller"
+         : isMulterError && error.code === "LIMIT_UNEXPECTED_FILE"
+           ? "Use the 'attachments' field and upload no more than 5 files"
+           : error.message || "Internal server error";
 
    res.status(statusCode).json({
       success: false,
-      message: error.message || "Internal server error",
+      message,
       errors: error.errors || [],
    });
 });
